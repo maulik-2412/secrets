@@ -26,7 +26,7 @@ app.use(passport.session());
 app.set('view engine','ejs');
 
 async function main() {
-    await mongoose.connect("mongodb://localhost:27017/userDB");   
+    await mongoose.connect("mongodb+srv://"+process.env.DB_USERNAME+":"+process.env.DB_PASSWORD+"@cluster0.iiz1a.mongodb.net/secretsUserDB");   
 }
 
 main().catch(console.error);
@@ -141,6 +141,6 @@ app.route("/submit")
         res.redirect('secrets');
     })
 
-app.listen(3000,function(){
+app.listen( process.env.PORT || 3000,function(){
     console.log("server started at 3000");
 });
