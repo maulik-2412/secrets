@@ -8,6 +8,7 @@ const expressSession=require('express-session');
 const passportLocalMongoose=require('passport-local-mongoose');
 const session = require('express-session');
 const GoogleStrategy=require('passport-google-oauth20').Strategy;
+const MongoStore=require('connect-mongo')
 
 const app=express();
 
@@ -15,9 +16,11 @@ app.use(bodyParser.urlencoded({extended:true}));
 app.use(express.static('public'));
 
 app.use(session({
-    secret:"qwertyuiop",
-    resave:false,
-    saveUninitialized:false
+    store: MongoStore.create({ mongoUrl: "mongodb+srv://"+process.env.DB_USERNAME+":"+process.env.DB_PASSWORD+"@cluster0.iiz1a.mongodb.net/secretsUserDB" }),
+    secret: process.env.SECRET_STRING,  // Replace with a secure secret in production
+    resave: false,
+    saveUninitialized: false,
+    cookie: { secure: false } 
 }));
 
 app.use(passport.initialize());
@@ -48,7 +51,7 @@ passport.deserializeUser(function(user, cb) {
 passport.use(new GoogleStrategy({
     clientID: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    callbackURL: process.env.CALLBACK_URL
+    callbackURL:  process.env.CALLBACK_URL 
   },
   function(accessToken, refreshToken, profile, cb) {
     Users.findOrCreate({ googleId: profile.id }, function (err, user) {
