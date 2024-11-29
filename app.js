@@ -10,6 +10,7 @@ const authRoutes = require('./routes/authRoutes');
 const postsRoute = require('./routes/postsRoute');
 const submitRoutes = require('./routes/submitRoutes');
 const googleAuth=require('./routes/googleAuth');
+const MongoStore=require('connect-mongo');
 const app = express();
 
 app.use(bodyParser.urlencoded({ extended: true }));
