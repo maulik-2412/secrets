@@ -1,156 +1,60 @@
-const express=require('express');
-const mongoose = require('mongoose');
-const bodyParser=require('body-parser');
-const ejs=require('ejs');
-const Users=require('./models/user');
-const passport=require('passport');
-const expressSession=require('express-session');
-const passportLocalMongoose=require('passport-local-mongoose');
+require('dotenv').config();
+const express = require('express');
+const bodyParser = require('body-parser');
 const session = require('express-session');
-const GoogleStrategy=require('passport-google-oauth20').Strategy;
-const MongoStore=require('connect-mongo')
+const passport = require('passport');
+const cors = require('cors');
+const connectDatabase = require('./config/mongooseConfig');
+const passportConfig = require('./config/passportConfig');
+const authRoutes = require('./routes/authRoutes');
+const postsRoute = require('./routes/postsRoute');
+const submitRoutes = require('./routes/submitRoutes');
+const googleAuth=require('./routes/googleAuth');
+const app = express();
 
-const app=express();
-
-app.use(bodyParser.urlencoded({extended:true}));
+app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static('public'));
 
+app.use(express.json()); 
+app.use(express.urlencoded({ extended: true }));
+
+app.use(cors());
+
+
 app.use(session({
-    store: MongoStore.create({ mongoUrl: "mongodb+srv://"+process.env.DB_USERNAME+":"+process.env.DB_PASSWORD+"@cluster0.iiz1a.mongodb.net/secretsUserDB" }),
-    secret: process.env.SECRET_STRING,  // Replace with a secure secret in production
+    store: MongoStore.create({ mongoUrl: process.env.MONGO_URI}),
+    secret: process.env.SESSION_SECRET,
     resave: false,
-    saveUninitialized: false,
-    cookie: { secure: false } 
+    saveUninitialized: false
 }));
 
 app.use(passport.initialize());
 app.use(passport.session());
 
-app.set('view engine','ejs');
-
-async function main() {
-    await mongoose.connect("mongodb+srv://"+process.env.DB_USERNAME+":"+process.env.DB_PASSWORD+"@cluster0.iiz1a.mongodb.net/secretsUserDB");   
-}
-
-main().catch(console.error);
-
-passport.use(Users.createStrategy());
-
-passport.serializeUser(function(user, cb) {
-    process.nextTick(function() {
-      cb(null, { id: user.id, username: user.username });
-    });
-});
-  
-passport.deserializeUser(function(user, cb) {
-    process.nextTick(function() {
-      return cb(null, user);
-    });
-});
-
-passport.use(new GoogleStrategy({
-    clientID: process.env.GOOGLE_CLIENT_ID,
-    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    callbackURL:  process.env.CALLBACK_URL 
-  },
-  function(accessToken, refreshToken, profile, cb) {
-    Users.findOrCreate({ googleId: profile.id }, function (err, user) {
-      return cb(err, user);
-    });
-  }
-));
-
-app.get("/",function(req,res){
-    res.render('home');
-});
+app.set('view engine', 'ejs');
 
 
-app.route("/login")
-    .get(function(req,res){
-        res.render('login');
-    })
-    .post(function(req,res){
-        const user=new Users({
-            username:req.body.username,
-            password:req.body.password
-        });
-        req.logIn(user,function(err){
-            if(err){
-                res.redirect("/login");
-            }else{
-                passport.authenticate("local")(req,res,function(){
-                    res.redirect("/secrets");
-                });
-            }
-        })
-    });
+connectDatabase();
 
-app.route("/register")
-    .get(function(req,res){
-        res.render('register');
-    })
-    .post(function (req,res) {
-        Users.register({username:req.body.username},req.body.password,function(err,user){
-            if(err){
-                res.redirect("/register");
-                console.log(err);
-            }else{
-                passport.authenticate("local")(req,res,function(){
-                    res.redirect("/secrets");
-                });
-            }
-        })
-    })
 
-app.route("/secrets")
-    .get(async function(req,res){
-       const usersSecrets=await Users.find({secret:{$ne:null}});
-       res.render('secrets',{usersSecrets:usersSecrets});
-    });
+app.use(authRoutes);
+app.use(postsRoute);
+app.use(submitRoutes);
+app.use(googleAuth);
 
-app.route("/logout")
-    .get(function(req,res){
-        req.logOut(function(err){
-            if(err){
-                alert("alert logging out");
-            }
-        });
-            req.session.destroy((err) => {
-                if (err) {
-                    console.error("Error destroying session:", err);
-                    return res.status(500).send("Error logging out");
-                }
-            res.clearCookie('connect.sid');
-            res.redirect("/");
-        });
-        
-    });
+app.get("/",(req,res)=>{
+    res.render('home',{user:req.user});
+})
 
-app.route("/auth/google")
-    .get(passport.authenticate("google",{scope:["profile"]})
-    );
-        
-app.route("/auth/google/secrets")
-    .get(passport.authenticate("google",{failureRedirect:"/login"}),
-    function(req,res){
-        res.redirect("/secrets");
-    }
-    );
-
-app.route("/submit")
-    .get(function(req,res){
-        if(req.isAuthenticated()){
-            res.render('submit');
-        }else{
-            res.redirect('login');
+app.get("/logout", (req, res) => {
+    req.logOut(function(err) {
+        if (err) {
+            alert("Error logging out");
         }
-    })
-    .post(async function(req,res){
-        const secret=req.body.secret;
-        await Users.findOneAndUpdate({_id:req.user.id},{secret:secret});
-        res.redirect('secrets');
-    })
+        res.redirect("/");
+    });
+});
 
-app.listen( process.env.PORT || 3000,function(){
-    console.log("server started at 3000");
+app.listen(3000, () => {
+    console.log("Server started on port 3000");
 });

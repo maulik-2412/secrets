@@ -1,0 +1,39 @@
+<%- include('partials/header') %>
+<div class="p-4">
+    <h2><%= post.title %></h2>
+    <p><%= post.body %></p>
+    
+    <button class="btn btn-danger btn-md" onclick="deletePost('<%= post._id %>')">Delete</button>
+    
+    <a class="btn btn-primary btn-md" href="/posts/edit/<%= post._id %>">Edit</a>
+    <a class="btn btn-dark btn-md" href="/posts">Back</a>
+</div>
+
+<script>
+    
+    function deletePost(postId) {
+        console.log(postId)
+        fetch(`/posts/${postId}`, {
+            method: 'DELETE'
+        })
+        .then(response => {
+            if (response.ok) {
+                
+                window.location.href = '/posts'; 
+            } else {
+                return response.json().then(errorData => {
+                    console.error('Error:', errorData.message);
+                    alert('Error deleting post');
+                });
+            }
+        })
+        .catch(err => {
+            console.error('Error deleting post:', err);
+        });
+    }
+
+    
+    
+</script>
+
+<%- include('partials/footer') %>
